@@ -48,5 +48,11 @@ async def on_member_join(member):
 
 # --- KESİN ÇÖZÜM BAŞLATMA SIRASI ---
 if __name__ == "__main__":
-  keep_alive()  # Önce web sunucusunu arka planda başlatıyoruz
-  bot.run(TOKEN)  # Sonra ana akışta botu çalıştırıyoruz
+  print("-> Flask web sunucusu arka planda başlatılıyor...")
+  keep_alive()
+
+  print("-> Discord botu başlatılıyor (bot.run çağrılıyor)...")
+  try:
+    bot.run(TOKEN)
+  except Exception as e:
+    print(f"-> BOT BAŞLATıRKEN HATA OLUŞTU: {e}")
