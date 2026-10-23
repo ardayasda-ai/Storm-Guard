@@ -19,7 +19,7 @@ def keep_alive():
 # -------------------------------------------
 
 # --- SUNUCU VE LOG KANALI AYARLARI ---
-TOKEN = "MTU2MzIxMjUxMjYzODI0Mz0Tg1Mg.GgAK2t.g8YGgAjtJzq9fIvuu4ZRY0C06-RGozSLR3tTho"
+TOKEN = "MTU2MzIxMjUxMjYzODI3OTg1Mg.GaHPdk.oBfVK3dglig0e0TtnAC9dhLK1hZymQVKh6SQm4"
 GUILD_ID = 1562558097690460321      # Sunucunun ID'si
 OTOROL_ID = 1562824132796612678     # Üye Rolü ID'si
 SAFE_ROLE_ID = 1562922053571580046  # Safe Rol ID'si
