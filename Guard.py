@@ -3,23 +3,26 @@ import threading
 import asyncio
 import re
 import os
-import certifi
 import discord
 from discord import app_commands
 from discord.ext import commands
 from flask import Flask
 
-# --- 0. KESİN SSL BYPASS (Aiohttp ve Discord İçin) ---
-os.environ['SSL_CERT_FILE'] = certifi.where()
-ssl._create_default_https_context = ssl._create_unverified_context
+# --- 0. KESİN KÖK SSL BYPASS (Sandbox Ortamı İçin) ---
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Discord.py altındaki aiohttp isteklerinin SSL sertifika hatası vermesini önleyen yama
-from discord.http import HTTPClient
-_old_handle_ratelimit = HTTPClient.request
+# Python'un genel SSL context oluşturucusunu güvensiz ve sertifikasız moda zorla
+_old_create_context = ssl.create_default_context
 
-async def _new_handle_ratelimit(self, route, *args, **kwargs):
-    kwargs['connector'] = aiohttp.TCPConnector(ssl=False)
-    return await _old_handle_ratelimit(self, route, *args, **kwargs)
+def _new_create_context(*args, **kwargs):
+    context = _old_create_context(*args, **kwargs)
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    return context
+
+ssl.create_default_context = _new_create_context
+ssl._create_default_https_context = _new_create_context
 
 # --- 1. WEB SUNUCUSU (7/24 Uptime) ---
 app = Flask('')
@@ -296,10 +299,6 @@ async def logsifirla(interaction: discord.Interaction):
 
 # --- 8. ÇALIŞTIRMA ---
 if __name__ == "__main__":
-    import aiohttp
-    # Aiohttp'nin varsayılan HTTPClient istek fonksiyonunu güvenli olmayan soket yöneticisiyle yamala
-    HTTPClient.request = _new_handle_ratelimit
-    
     keep_alive()
     print("-> Discord botu başlatılıyor (bot.run çağırılıyor)...")
     try:
