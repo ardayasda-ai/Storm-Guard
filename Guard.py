@@ -39,7 +39,7 @@ if FLASK_AVAILABLE:
 
     @app.route('/')
     def home():
-        return "Storm-Guard Safe Rolü ve Güvenlik Sistemleri Aktif!"
+        return "Storm-Guard Safe Rolü ve Ses Güvenlik Sistemleri Aktif!"
 
     def run():
         app.run(host='0.0.0.0', port=8080)
@@ -52,7 +52,6 @@ else:
         print("⚠️ Flask bulunamadı, web sunucusu başlatılamıyor.")
 
 # --- 2. BOT AYARLARI VE KONFİGÜRASYON ---
-# Render Environment Variables kısmından DISCORD_TOKEN değerini güvenle alır
 TOKEN = os.getenv("DISCORD_TOKEN", "").strip()
 
 GUILD_ID = 1562558097690460321
@@ -63,7 +62,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 intents.guilds = True
-intents.voice_states = True
+intents.voice_states = True  # Ses kanalı takibi için kritik!
 intents.moderation = True
 intents.bans = True
 
@@ -74,8 +73,6 @@ ALLOWED_BOTS = set()
 GLOBAL_BAN_LIST = set()
 CHAT_SAFE_USERS = set()
 USER_WARNINGS = {} 
-USER_SPAM_CACHE = {} 
-MOD_STATS = {} 
 MANUAL_BAN_AUTH = set()
 
 KUFUR_LISTESI = ["amk", "aq", "orospu", "piç", "sik", "yarak", "oç", "amq", "sikik", "amina", "anan"]
@@ -83,7 +80,7 @@ REKLAM_REGEX = re.compile(r"(https?://|discord\.gg/|discord\.com/invite/)")
 
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} Safe Rolü Tabanlı Güvenlik Sistemleri Aktif!')
+    print(f'{bot.user.name} Ses ve Güvenlik Sistemleri Aktif!')
     try:
         synced = await bot.tree.sync()
         print(f"🔗 {len(synced)} adet Slash (/) komutu senkronize edildi.")
@@ -110,7 +107,48 @@ def has_safe_role(member: discord.Member) -> bool:
         return True
     return False
 
-# --- 3. ÜYE & İZİNSİZ BOT KORUMASI ---
+# --- 3. SES KANAL LOGLARI (Voice Chat Logs) ---
+@bot.event
+async def on_voice_state_update(member, before, after):
+    if member.bot:
+        return
+
+    guild = member.guild
+    embed = None
+
+    # Başka bir kanala katıldı veya sıfırdan sese girdi
+    if before.channel is None and after.channel is not None:
+        embed = discord.Embed(
+            title="🔊 Ses Kanalına Giriş",
+            description=f"{member.mention} kullanıcısı ses kanalına giriş yaptı.",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Kanal", value=after.channel.name, inline=True)
+
+    # Ses kanalından tamamen ayrıldı
+    elif before.channel is not None and after.channel is None:
+        embed = discord.Embed(
+            title="🔇 Ses Kanalından Ayrılış",
+            description=f"{member.mention} kullanıcısı ses kanalından ayrıldı.",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="Ayrıldığı Kanal", value=before.channel.name, inline=True)
+
+    # Başka bir ses kanalına geçiş yaptı
+    elif before.channel != after.channel and before.channel is not None and after.channel is not None:
+        embed = discord.Embed(
+            title="🔄 Ses Kanalı Değişikliği",
+            description=f"{member.mention} ses kanalını değiştirdi.",
+            color=discord.Color.blue()
+        )
+        embed.add_field(name="Eski Kanal", value=before.channel.name, inline=True)
+        embed.add_field(name="Yeni Kanal", value=after.channel.name, inline=True)
+
+    if embed:
+        embed.set_footer(text=f"Kullanıcı ID: {member.id}")
+        await send_log(guild, "voice-logs", embed)
+
+# --- 4. ÜYE & İZİNSİZ BOT KORUMASI ---
 @bot.event
 async def on_member_join(member):
     if member.guild.id != GUILD_ID:
@@ -148,7 +186,7 @@ async def on_member_join(member):
         except:
             pass
 
-# --- 4. SAĞ TIK BAN KORUMASI ---
+# --- 5. SAĞ TIK BAN KORUMASI ---
 @bot.event
 async def on_member_ban(guild, user):
     await asyncio.sleep(1.2)
@@ -170,7 +208,7 @@ async def on_member_ban(guild, user):
     except:
         pass
 
-# --- 5. KANAL VE ROL SİLME KORUMALARI ---
+# --- 6. KANAL VE ROL SİLME KORUMALARI ---
 @bot.event
 async def on_guild_channel_delete(channel):
     await asyncio.sleep(1)
@@ -201,7 +239,7 @@ async def on_guild_role_delete(role):
                 pass
             return
 
-# --- 6. CHAT MODERATION & KÜFÜR ENGELLEME ---
+# --- 7. CHAT MODERATION & KÜFÜR ENGELLEME ---
 @bot.event
 async def on_message(message):
     if not message.guild or message.author.bot:
@@ -243,7 +281,41 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# --- 7. SLASH KOMUTLARI ---
+# --- 8. SLASH KOMUTLARI ---
+
+# Ses kanalına katılım komutu (Kanal seçmeli ve sorunsuz)
+@bot.tree.command(name="seskatil", description="Botu seçilen ses kanalına sokar (Safe Rolü gerekir).")
+@app_commands.describe(kanal="Botun bağlanacağı ses kanalını seçin")
+async def seskatil(interaction: discord.Interaction, kanal: discord.VoiceChannel):
+    await interaction.response.defer(ephemeral=True)
+    if not has_safe_role(interaction.user):
+        await interaction.followup.send("❌ Bu komutu kullanmak için Safe rolüne sahip olmalısınız!", ephemeral=True)
+        return
+    
+    try:
+        # Eğer bot zaten başka bir seste ise önce çıkıp yenisine bağlanır
+        if interaction.guild.voice_client:
+            await interaction.guild.voice_client.move_to(kanal)
+        else:
+            await kanal.connect()
+            
+        await interaction.followup.send(f"✅ Başarıyla **{kanal.name}** ses kanalına katıldım!", ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Ses kanalına bağlanırken hata oluştu: {e}", ephemeral=True)
+
+@bot.tree.command(name="sesayril", description="Botu bulunduğu ses kanalından çıkarır.")
+async def sesayril(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    if not has_safe_role(interaction.user):
+        await interaction.followup.send("❌ Safe rolünüz yok!", ephemeral=True)
+        return
+    
+    if interaction.guild.voice_client:
+        await interaction.guild.voice_client.disconnect()
+        await interaction.followup.send("✅ Ses kanalından ayrıldım.", ephemeral=True)
+    else:
+        await interaction.followup.send("❌ Zaten bir ses kanalında değilim!", ephemeral=True)
+
 @bot.tree.command(name="botizin", description="Sunucuya eklenecek botun ID'sine izin verir (Safe Rolü gerekir).")
 async def botizin(interaction: discord.Interaction, bot_id: str):
     await interaction.response.defer(ephemeral=True)
@@ -284,19 +356,19 @@ async def ban(interaction: discord.Interaction, uye: discord.Member, sebep: str 
     await uye.ban(reason=sebep)
     await interaction.followup.send(f"✅ {uye.mention} banlandı.", ephemeral=True)
 
-@bot.tree.command(name="logkurulum", description="Log kanallarını kurar.")
+@bot.tree.command(name="logkurulum", description="Log kanallarını kurar (Ses logları dahil).")
 @app_commands.checks.has_permissions(administrator=True)
 async def logkurulum(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
     guild = interaction.guild
     category = await guild.create_category("Server Logs")
-    kanal_isimleri = ["guard-log", "ban-logs", "member-logs", "chat-moderation-logs", "global-ban"]
+    kanal_isimleri = ["guard-log", "ban-logs", "member-logs", "chat-moderation-logs", "global-ban", "voice-logs"]
     for isim in kanal_isimleri:
         try:
             await guild.create_text_channel(isim, category=category)
         except:
             pass
-    await interaction.followup.send("✅ Log Kanalları Kuruldu!")
+    await interaction.followup.send("✅ Log Kanalları ve Ses Logları Başarıyla Kuruldu!")
 
 @bot.tree.command(name="logsifirla", description="Log kanallarını sıfırlar.")
 @app_commands.checks.has_permissions(administrator=True)
@@ -312,10 +384,10 @@ async def logsifirla(interaction: discord.Interaction):
             except: pass
     await interaction.followup.send("🔄 Log sistemi sıfırlandı.")
 
-# --- 8. ÇALIŞTIRMA ---
+# --- 9. ÇALIŞTIRMA ---
 if __name__ == "__main__":
     if not TOKEN:
-        print("❌ KRİTİK HATA: DISCORD_TOKEN bulunamadı! Lütfen Render Environment Variables kısmına token eklediğinden emin ol.")
+        print("❌ KRİTİK HATA: DISCORD_TOKEN bulunamadı!")
     else:
         if FLASK_AVAILABLE:
             keep_alive()
