@@ -52,7 +52,9 @@ else:
         print("⚠️ Flask bulunamadı, web sunucusu başlatılamıyor.")
 
 # --- 2. BOT AYARLARI VE KONFİGÜRASYON ---
-TOKEN = os.getenv("DISCORD_TOKEN", "MTU2MzIxMjUxMjYzODI3OTg1Mg.Grojg5.3kCtYduiJuLnMSOTilpEzeUHK3I6Isoao2_yoY")
+# Render Environment Variables kısmından DISCORD_TOKEN değerini güvenle alır
+TOKEN = os.getenv("DISCORD_TOKEN", "").strip()
+
 GUILD_ID = 1562558097690460321
 OTOROL_ID = 1562824132796612678
 SAFE_ROLE_ID = 1562922053571580046  # 👉 Sunucundaki Safe Rolünün ID'si
@@ -312,10 +314,13 @@ async def logsifirla(interaction: discord.Interaction):
 
 # --- 8. ÇALIŞTIRMA ---
 if __name__ == "__main__":
-    if FLASK_AVAILABLE:
-        keep_alive()
-    print("-> Discord botu başlatılıyor (bot.run çağırılıyor)...")
-    try:
-        bot.run(TOKEN)
-    except Exception as e:
-        print(f"-> BOT BAŞLATIRKEN HATA OLUŞTU: {e}")
+    if not TOKEN:
+        print("❌ KRİTİK HATA: DISCORD_TOKEN bulunamadı! Lütfen Render Environment Variables kısmına token eklediğinden emin ol.")
+    else:
+        if FLASK_AVAILABLE:
+            keep_alive()
+        print("-> Discord botu başlatılıyor (bot.run çağırılıyor)...")
+        try:
+            bot.run(TOKEN)
+        except Exception as e:
+            print(f"-> BOT BAŞLATIRKEN HATA OLUŞTU: {e}")
