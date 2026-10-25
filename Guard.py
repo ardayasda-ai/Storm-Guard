@@ -4,21 +4,29 @@ import asyncio
 import re
 import os
 
-# --- 0. KESİN VE NHAZİ SSL / CERTIFICATE BYPASS ---
+# --- 0. KESİN VE FİZİKSEL SSL / SOCKET BYPASS ---
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Python socket ve ssl katmanını tamamen güvensiz moda zorla
 ssl._create_default_https_context = ssl._create_unverified_context
+
+original_wrap_socket = ssl.SSLSocket.wrap_socket
+def patched_wrap_socket(self, *args, **kwargs):
+    kwargs['cert_reqs'] = ssl.CERT_NONE
+    return original_wrap_socket(self, *args, **kwargs)
+ssl.SSLSocket.wrap_socket = patched_wrap_socket
 
 import aiohttp
 from aiohttp import TCPConnector
 
-# Discord.py alt yapısındaki TCPConnector'ü tamamen güvensiz moda zorla
-_orig_init = TCPConnector.__init__
-def _patched_tcp_init(self, *args, **kwargs):
+# aiohttp'nin her bağlantı isteğinde ssl=True argümanını False yapmasını zorla
+_orig_tcp_init = TCPConnector.__init__
+def _new_tcp_init(self, *args, **kwargs):
     kwargs['ssl'] = False
     kwargs['verify_ssl'] = False
-    _orig_init(self, *args, **kwargs)
-TCPConnector.__init__ = _patched_tcp_init
+    _orig_tcp_init(self, *args, **kwargs)
+TCPConnector.__init__ = _new_tcp_init
 
 import discord
 from discord import app_commands
@@ -313,12 +321,6 @@ if __name__ == "__main__":
         keep_alive()
     print("-> Discord botu başlatılıyor (bot.run çağırılıyor)...")
     try:
-        # Aiohttp ClientSession başlangıcını da koruma altına alarak başlatıyoruz
-        old_start = bot.start
-        async def patched_start(*args, **kwargs):
-            # Discord HTTPClient oturum açarken TCPConnector kullanır, yama zaten devreye girdi
-            return await old_start(*args, **kwargs)
-            
-        asyncio.run(patched_start(TOKEN))
+        bot.run(TOKEN)
     except Exception as e:
         print(f"-> BOT BAŞLATIRKEN HATA OLUŞTU: {e}")
