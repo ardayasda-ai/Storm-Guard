@@ -78,10 +78,13 @@ REKLAM_REGEX = re.compile(r"(https?://|discord\.gg/|discord\.com/invite/)")
 
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} Kesintisiz Koruma ve Ses Sistemleri Aktif!')
+    print(f'{bot.user.name} Kesintisiz Koruma ve Komut Senkronizasyonu Aktif!')
     try:
-        synced = await bot.tree.sync()
-        print(f"🔗 {len(synced)} adet Slash (/) komutu senkronize edildi.")
+        # Komutları doğrudan senin sunucuna anında senkronize eder
+        guild_obj = discord.Object(id=GUILD_ID)
+        bot.tree.copy_global_to(guild=guild_obj)
+        synced = await bot.tree.sync(guild=guild_obj)
+        print(f"🔗 {len(synced)} adet Slash (/) komutu sunucuya özel senkronize edildi.")
     except Exception as e:
         print(f"Komut senkronizasyon hatası: {e}")
 
@@ -103,31 +106,7 @@ def has_safe_role(member: discord.Member) -> bool:
         return True
     return False
 
-# --- 3. SES KANAL LOGLARI (Voice Chat Logs) ---
-@bot.event
-async def on_voice_state_update(member, before, after):
-    if member.bot:
-        return
-
-    guild = member.guild
-    embed = None
-
-    if before.channel is None and after.channel is not None:
-        embed = discord.Embed(title="🔊 Ses Kanalına Giriş", description=f"{member.mention} ses kanalına giriş yaptı.", color=discord.Color.green())
-        embed.add_field(name="Kanal", value=after.channel.name, inline=True)
-    elif before.channel is not None and after.channel is None:
-        embed = discord.Embed(title="🔇 Ses Kanalından Ayrılış", description=f"{member.mention} ses kanalından ayrıldı.", color=discord.Color.red())
-        embed.add_field(name="Ayrıldığı Kanal", value=before.channel.name, inline=True)
-    elif before.channel != after.channel and before.channel is not None and after.channel is not None:
-        embed = discord.Embed(title="🔄 Ses Kanalı Değişikliği", description=f"{member.mention} ses kanalını değiştirdi.", color=discord.Color.blue())
-        embed.add_field(name="Eski Kanal", value=before.channel.name, inline=True)
-        embed.add_field(name="Yeni Kanal", value=after.channel.name, inline=True)
-
-    if embed:
-        embed.set_footer(text=f"Kullanıcı ID: {member.id}")
-        await send_log(guild, "voice-logs", embed)
-
-# --- 4. SAĞ TIK BAN KORUMASI ---
+# --- 3. SAĞ TIK BAN KORUMASI ---
 @bot.event
 async def on_member_ban(guild, user):
     await asyncio.sleep(1.2)
@@ -158,7 +137,7 @@ async def on_member_ban(guild, user):
     except Exception as e:
         print(f"Ban koruma hatası: {e}")
 
-# --- 5. SAĞ TIK KICK KORUMASI ---
+# --- 4. SAĞ TIK KICK KORUMASI ---
 @bot.event
 async def on_member_remove(member):
     await asyncio.sleep(1.2)
@@ -188,7 +167,7 @@ async def on_member_remove(member):
         leave_embed.set_thumbnail(url=member.display_avatar.url)
         await send_log(member.guild, "member-logs", leave_embed)
 
-# --- 6. SAĞ TIK ROL VERME / ALMA KORUMASI ---
+# --- 5. SAĞ TIK ROL VERME / ALMA KORUMASI ---
 @bot.event
 async def on_member_update(before, after):
     if before.roles == after.roles:
@@ -239,7 +218,7 @@ async def on_member_update(before, after):
     except Exception as e:
         print(f"Rol koruma hatası: {e}")
 
-# --- 7. KANAL VE ROL SİLME KORUMASI ---
+# --- 6. KANAL VE ROL SİLME KORUMASI ---
 @bot.event
 async def on_guild_channel_delete(channel):
     await asyncio.sleep(1)
@@ -280,7 +259,7 @@ async def on_guild_role_delete(role):
                 pass
             return
 
-# --- 8. ÜYE GİRİŞ & ANTI-BOT ---
+# --- 7. ÜYE GİRİŞ & ANTI-BOT ---
 @bot.event
 async def on_member_join(member):
     if member.guild.id != GUILD_ID:
@@ -334,7 +313,7 @@ async def on_member_join(member):
         except:
             pass
 
-# --- 9. CHAT MODERATION ---
+# --- 8. CHAT MODERATION ---
 @bot.event
 async def on_message(message):
     if not message.guild or message.author.bot:
@@ -377,7 +356,7 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# --- 10. SLASH KOMUTLARI (SES, BAN, LOG KONTROLÜ) ---
+# --- 9. SLASH KOMUTLARI ---
 
 @bot.tree.command(name="seskatil", description="Botu seçilen ses kanalına sağırlaştırılmış ve susturulmuş şekilde sokar.")
 @app_commands.describe(kanal="Botun bağlanacağı ses kanalını seçin")
@@ -388,13 +367,11 @@ async def seskatil(interaction: discord.Interaction, kanal: discord.VoiceChannel
         return
     
     try:
-        # Zaten sesteyse taşı, değilse bağlan
         if interaction.guild.voice_client:
             await interaction.guild.voice_client.move_to(kanal)
         else:
             await kanal.connect()
             
-        # Botu sese girer girmez susturulmuş ve sağırlaştırılmış yap
         if interaction.guild.voice_client:
             await interaction.guild.voice_client.guild.change_voice_state(channel=kanal, self_mute=True, self_deaf=True)
             
@@ -548,7 +525,7 @@ async def logkurulum(interaction: discord.Interaction):
 
 @bot.tree.command(name="logsifirla", description="Server Logs kategorisini ve içindeki tüm kanalları siler (Yönetici gerekir).")
 @app_commands.checks.has_permissions(administrator=True)
-async def logsifirla(interaction: discord.Interaction):
+async def logsifirla(interaction: discord.SystemInteraction if hasattr(discord, 'SystemInteraction') else discord.Interaction):
     await interaction.response.defer(thinking=True, ephemeral=True)
     guild = interaction.guild
     silinen_kanal = 0
@@ -568,7 +545,7 @@ async def logsifirla(interaction: discord.Interaction):
                 
     await interaction.followup.send(f"🔄 Log sistemi sıfırlandı. Toplam {silinen_kanal} log kanalı silindi.", ephemeral=True)
 
-# --- 11. ÇALIŞTIRMA ---
+# --- 10. ÇALIŞTIRMA ---
 if __name__ == "__main__":
     if not TOKEN:
         print("❌ KRİTİK HATA: DISCORD_TOKEN bulunamadı!")
