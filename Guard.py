@@ -38,7 +38,7 @@ if FLASK_AVAILABLE:
 
     @app.route('/')
     def home():
-        return "Storm-Guard Full Güvenlik Sistemleri Aktif!"
+        return "Storm-Guard Kesintisiz Güvenlik Sistemleri Aktif!"
 
     def run():
         app.run(host='0.0.0.0', port=8080)
@@ -78,7 +78,7 @@ REKLAM_REGEX = re.compile(r"(https?://|discord\.gg/|discord\.com/invite/)")
 
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} Full Koruma Sistemleri Aktif!')
+    print(f'{bot.user.name} Kesintisiz Koruma ve Log Sistemleri Aktif!')
     try:
         synced = await bot.tree.sync()
         print(f"🔗 {len(synced)} adet Slash (/) komutu senkronize edildi.")
@@ -90,8 +90,8 @@ async def send_log(guild, channel_name, embed):
     if chan:
         try:
             await chan.send(embed=embed)
-        except:
-            pass
+        except Exception as e:
+            print(f"Log gönderme hatası ({channel_name}): {e}")
 
 def has_safe_role(member: discord.Member) -> bool:
     if not member:
@@ -103,7 +103,7 @@ def has_safe_role(member: discord.Member) -> bool:
         return True
     return False
 
-# --- 3. SAĞ TIK BAN & KICK KORUMASI ---
+# --- 3. SAĞ TIK BAN KORUMASI ---
 @bot.event
 async def on_member_ban(guild, user):
     await asyncio.sleep(1.2)
@@ -119,21 +119,27 @@ async def on_member_ban(guild, user):
                 MANUAL_AUTH.remove(member.id)
                 return
             if not has_safe_role(member):
-                await guild.unban(user, reason="Storm-Guard: Yetkisiz ban kaldırıldı.")
-                await guild.ban(member, reason="Storm-Guard: Safe rolü olmadan sağ tık ban denemesi!")
+                sebep_metni = "Safe Rolü Olmadan Sağ Tık Ban Atmak"
+                await guild.unban(user, reason=f"Storm-Guard: Yetkisiz işlem geri alındı.")
+                await guild.ban(member, reason=f"Storm-Guard: {sebep_metni}")
+                
                 embed = discord.Embed(
                     title="🚨 İzinsiz Sağ Tık Ban Engellendi!",
-                    description=f"**Yetkisiz Yetkili:** {member.mention}\n**Hedef:** {user.name}\n*İşlem geri alındı ve yetkisiz kişi banlandı.*",
                     color=discord.Color.red()
                 )
+                embed.add_field(name="Yetkisiz Yetkili", value=member.mention, inline=False)
+                embed.add_field(name="Haksız Banlanan", value=user.name, inline=False)
+                embed.add_field(name="Ban Sebebi", value=f"`{sebep_metni}`", inline=False)
+                embed.set_footer(text="İşlem geri alındı ve yetkisiz kişi cezalandırıldı.")
+                
                 await send_log(guild, "ban-logs", embed)
                 return
     except Exception as e:
         print(f"Ban koruma hatası: {e}")
 
+# --- 4. SAĞ TIK KICK KORUMASI ---
 @bot.event
 async def on_member_remove(member):
-    # Sağ tık kick kontrolü
     await asyncio.sleep(1.2)
     try:
         async for entry in member.guild.audit_logs(limit=3, action=discord.AuditLogAction.kick):
@@ -143,16 +149,21 @@ async def on_member_remove(member):
                     return
                 manager = member.guild.get_member(actor.id)
                 if manager and not has_safe_role(manager):
-                    await member.guild.ban(manager, reason="Storm-Guard: Safe rolü olmadan sağ tık kick denemesi!")
+                    sebep_metni = "Safe Rolü Olmadan Sağ Tık Üye Atmak (Kick)"
+                    await member.guild.ban(manager, reason=f"Storm-Guard: {sebep_metni}")
+                    
                     embed = discord.Embed(
                         title="🚨 İzinsiz Sağ Tık Kick Engellendi!",
-                        description=f"**Yetkisiz Yetkili:** {manager.mention}\n**Atılan Üye:** {member.name}\n*Yetkisiz kişi sunucudan yasaklandı.*",
                         color=discord.Color.red()
                     )
+                    embed.add_field(name="Yetkisiz Yetkili", value=manager.mention, inline=False)
+                    embed.add_field(name="Atılan Üye", value=member.name, inline=False)
+                    embed.add_field(name="Ban Sebebi", value=f"`{sebep_metni}`", inline=False)
+                    
                     await send_log(member.guild, "ban-logs", embed)
                     return
-    except:
-        pass
+    except Exception as e:
+        print(f"Kick koruma hatası: {e}")
 
     # Normal üye çıkış logu
     if member.guild.id == GUILD_ID:
@@ -164,7 +175,7 @@ async def on_member_remove(member):
         leave_embed.set_thumbnail(url=member.display_avatar.url)
         await send_log(member.guild, "member-logs", leave_embed)
 
-# --- 4. SAĞ TIK ROL VERME / ALMA KORUMASI ---
+# --- 5. SAĞ TIK ROL VERME / ALMA KORUMASI ---
 @bot.event
 async def on_member_update(before, after):
     if before.roles == after.roles:
@@ -184,29 +195,44 @@ async def on_member_update(before, after):
                 return
 
             if not has_safe_role(manager):
-                # Değişen rolleri eski haline (before) geri döndür
+                # Hangi rol eklendi veya çıkarıldı tespit edelim
+                added_roles = [r for r in after.roles if r not in before.roles]
+                removed_roles = [r for r in before.roles if r not in after.roles]
+                
+                if added_roles:
+                    sebep_metni = "Safe Rolü Olmadan Sağ Tık Rol Vermek"
+                elif removed_roles:
+                    sebep_metni = "Safe Rolü Olmadan Sağ Tık Rol Almak"
+                else:
+                    sebep_metni = "Safe Rolü Olmadan Sağ Tık Rol Değiştirmek"
+
+                # Rolleri eski haline geri döndür
                 try:
                     await after.edit(roles=before.roles, reason="Storm-Guard: Yetkisiz rol değişimi geri alındı.")
                 except:
                     pass
 
-                # Rol vermeye/almaya çalışan yetkisiz kişiyi banla
+                # Yetkisiz kişiyi banla
                 try:
-                    await after.guild.ban(manager, reason="Storm-Guard: Safe rolü olmadan izinsiz rol verme/alma denemesi!")
+                    await after.guild.ban(manager, reason=f"Storm-Guard: {sebep_metni}")
                 except:
                     pass
 
                 embed = discord.Embed(
                     title="🚨 İzinsiz Rol İşlemi Engellendi!",
-                    description=f"**Yetkisiz Yetkili:** {manager.mention}\n**Hedef Üye:** {after.mention}\n*Yapılan rol değişikliği geri alındı ve yetkisiz kişi banlandı.*",
                     color=discord.Color.red()
                 )
-                await send_log(after.guild, "rol-update-logs", embed)
+                embed.add_field(name="Yetkisiz Yetkili", value=manager.mention, inline=False)
+                embed.add_field(name="Hedef Üye", value=after.mention, inline=False)
+                embed.add_field(name="Ban Sebebi", value=f"`{sebep_metni}`", inline=False)
+                embed.set_footer(text="Rol değişimi geri alındı ve yetkisiz kişi banlandı.")
+                
+                await send_log(after.guild, "ban-logs", embed)
                 return
     except Exception as e:
         print(f"Rol koruma hatası: {e}")
 
-# --- 5. KANAL VE ROL SİLME KORUMASI ---
+# --- 6. KANAL VE ROL SİLME KORUMASI ---
 @bot.event
 async def on_guild_channel_delete(channel):
     await asyncio.sleep(1)
@@ -214,9 +240,17 @@ async def on_guild_channel_delete(channel):
         user = entry.user
         member = channel.guild.get_member(user.id)
         if member and not has_safe_role(member):
+            sebep_metni = "Safe Rolü Olmadan İzinsiz Kanal Silmek"
             try:
-                await channel.guild.ban(member, reason="Storm-Guard: Safe rolü olmadan izinsiz kanal silme!")
-                embed = discord.Embed(title="🚨 İzinsiz Kanal Silme", description=f"{member.mention} Safe rolü olmadığı halde kanalı sildiği için banlandı!", color=discord.Color.red())
+                await channel.guild.ban(member, reason=f"Storm-Guard: {sebep_metni}")
+                embed = discord.Embed(
+                    title="🚨 İzinsiz Kanal Silme Engellendi",
+                    color=discord.Color.red()
+                )
+                embed.add_field(name="Yetkisiz Yetkili", value=member.mention, inline=False)
+                embed.add_field(name="Silinen Kanal", value=channel.name, inline=False)
+                embed.add_field(name="Ban Sebebi", value=f"`{sebep_metni}`", inline=False)
+                
                 await send_log(channel.guild, "guard-log", embed)
             except:
                 pass
@@ -229,15 +263,23 @@ async def on_guild_role_delete(role):
         user = entry.user
         member = role.guild.get_member(user.id)
         if member and not has_safe_role(member):
+            sebep_metni = "Safe Rolü Olmadan İzinsiz Rol Silmek"
             try:
-                await role.guild.ban(member, reason="Storm-Guard: Safe rolü olmadan izinsiz rol silme!")
-                embed = discord.Embed(title="🚨 İzinsiz Rol Silme", description=f"{member.mention} Safe rolü olmadığı halde rolü sildiği için banlandı!", color=discord.Color.red())
+                await role.guild.ban(member, reason=f"Storm-Guard: {sebep_metni}")
+                embed = discord.Embed(
+                    title="🚨 İzinsiz Rol Silme Engellendi",
+                    color=discord.Color.red()
+                )
+                embed.add_field(name="Yetkisiz Yetkili", value=member.mention, inline=False)
+                embed.add_field(name="Silinen Rol", value=role.name, inline=False)
+                embed.add_field(name="Ban Sebebi", value=f"`{sebep_metni}`", inline=False)
+                
                 await send_log(role.guild, "guard-log", embed)
             except:
                 pass
             return
 
-# --- 6. ÜYE GİRİŞ & ANTI-BOT ---
+# --- 7. ÜYE GİRİŞ & ANTI-BOT ---
 @bot.event
 async def on_member_join(member):
     if member.guild.id != GUILD_ID:
@@ -269,17 +311,21 @@ async def on_member_join(member):
                     return
                 member_adder = member.guild.get_member(adder.id)
                 
+                sebep_metni = "Safe Rolü Olmadan İzinsiz Bot Eklemek"
                 bot_embed = discord.Embed(
                     title="🤖 İzinsiz Bot Tespit Edildi!",
-                    description=f"**Bot:** {member.mention}\n**Ekleyen:** {member_adder.mention if member_adder else 'Bilinmiyor'}",
                     color=discord.Color.red()
                 )
+                bot_embed.add_field(name="Eklenen Bot", value=member.mention, inline=False)
+                bot_embed.add_field(name="Ekleyen Yetkili", value=member_adder.mention if member_adder else 'Bilinmiyor', inline=False)
+                bot_embed.add_field(name="Ban Sebebi", value=f"`{sebep_metni}`", inline=False)
+                
                 await send_log(member.guild, "anti-bot-log", bot_embed)
 
                 if not member_adder or not has_safe_role(member_adder):
                     await member.ban(reason="Storm-Guard: Yetkisiz bot")
                     if member_adder:
-                        await member.guild.ban(member_adder, reason="Storm-Guard: Safe rolü olmadan izinsiz bot soktu")
+                        await member.guild.ban(member_adder, reason=f"Storm-Guard: {sebep_metni}")
                     return
         except:
             pass
@@ -291,7 +337,7 @@ async def on_member_join(member):
         except:
             pass
 
-# --- 7. CHAT MODERATION ---
+# --- 8. CHAT MODERATION ---
 @bot.event
 async def on_message(message):
     if not message.guild or message.author.bot:
@@ -334,7 +380,7 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# --- 8. SLASH KOMUTLARI ---
+# --- 9. SLASH KOMUTLARI ---
 @bot.tree.command(name="ban", description="Safe rolüne sahip yetkililerin güvenli ban atması.")
 async def ban(interaction: discord.Interaction, uye: discord.Member, sebep: str = "Belirtilmedi"):
     await interaction.response.defer(ephemeral=True)
@@ -361,7 +407,7 @@ async def botizin(interaction: discord.Interaction, bot_id: str):
     except:
         await interaction.followup.send("❌ Geçerli bir Bot ID giriniz!", ephemeral=True)
 
-# --- 9. ÇALIŞTIRMA ---
+# --- 10. ÇALIŞTIRMA ---
 if __name__ == "__main__":
     if not TOKEN:
         print("❌ KRİTİK HATA: DISCORD_TOKEN bulunamadı!")
