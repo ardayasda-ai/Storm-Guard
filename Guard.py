@@ -1,26 +1,20 @@
+import os
+# --- 0. SİSTEM SERTİFİKA VE SSL BYPASS ---
+os.environ['SSL_CERT_FILE'] = ''
+os.environ['REQUESTS_CA_BUNDLE'] = ''
+
 import ssl
 import threading
 import asyncio
 import re
-import os
 
-# --- 0. KESİN VE FİZİKSEL SSL / SOCKET BYPASS ---
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# Python socket ve ssl katmanını tamamen güvensiz moda zorla
 ssl._create_default_https_context = ssl._create_unverified_context
-
-original_wrap_socket = ssl.SSLSocket.wrap_socket
-def patched_wrap_socket(self, *args, **kwargs):
-    kwargs['cert_reqs'] = ssl.CERT_NONE
-    return original_wrap_socket(self, *args, **kwargs)
-ssl.SSLSocket.wrap_socket = patched_wrap_socket
 
 import aiohttp
 from aiohttp import TCPConnector
 
-# aiohttp'nin her bağlantı isteğinde ssl=True argümanını False yapmasını zorla
 _orig_tcp_init = TCPConnector.__init__
 def _new_tcp_init(self, *args, **kwargs):
     kwargs['ssl'] = False
