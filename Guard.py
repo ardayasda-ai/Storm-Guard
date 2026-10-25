@@ -4,15 +4,17 @@ import asyncio
 import re
 import os
 import aiohttp
+import urllib3
 import discord
 from discord import app_commands
 from discord.ext import commands
 from flask import Flask
 
-# --- KESİN AIOHTTP & SSL BYPASS ---
+# --- KESİN SSL VE SERTİFİKA BYPASS ---
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ssl._create_default_https_context = ssl._create_unverified_context
 
-# Aiohttp'nin tüm TCP bağlantılarında SSL doğrulamasını zorla kapat
+# Aiohttp TCPConnector seviyesinde SSL doğrulamasını kökten kapat
 _old_connector_init = aiohttp.TCPConnector.__init__
 def _new_connector_init(self, *args, **kwargs):
     kwargs['ssl'] = False
