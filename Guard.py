@@ -4,23 +4,24 @@ import asyncio
 import re
 import os
 
-# --- 0. KESİN SSL VE SERTİFİKA BYPASS ---
+# --- 0. KESİN VE ZORLAYICI SSL BYPASS ---
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ssl._create_default_https_context = ssl._create_unverified_context
 
 import aiohttp
-_old_connector_init = aiohttp.TCPConnector.__init__
-def _new_connector_init(self, *args, **kwargs):
+
+# Aiohttp'nin HTTPClient ve TCPConnector seviyesindeki tüm sertifika denetimlerini devre dışı bırak
+original_init = aiohttp.TCPConnector.__init__
+def patched_init(self, *args, **kwargs):
     kwargs['ssl'] = False
-    _old_connector_init(self, *args, **kwargs)
-aiohttp.TCPConnector.__init__ = _new_connector_init
+    original_init(self, *args, **kwargs)
+aiohttp.TCPConnector.__init__ = patched_init
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-# Flask modülü kontrolü (Eğer yüklenmemişse hata vermemesi için güvenli katman)
 try:
     from flask import Flask
     FLASK_AVAILABLE = True
