@@ -1,3 +1,5 @@
-discord.py
 flask
+discord.py
+aiohttp
 certifi
+urllib3

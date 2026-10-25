@@ -3,37 +3,47 @@ import threading
 import asyncio
 import re
 import os
-import aiohttp
-import urllib3
-import discord
-from discord import app_commands
-from discord.ext import commands
-from flask import Flask
 
-# --- KESİN SSL VE SERTİFİKA BYPASS ---
+# --- 0. KESİN SSL VE SERTİFİKA BYPASS ---
+import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ssl._create_default_https_context = ssl._create_unverified_context
 
-# Aiohttp TCPConnector seviyesinde SSL doğrulamasını kökten kapat
+import aiohttp
 _old_connector_init = aiohttp.TCPConnector.__init__
 def _new_connector_init(self, *args, **kwargs):
     kwargs['ssl'] = False
     _old_connector_init(self, *args, **kwargs)
 aiohttp.TCPConnector.__init__ = _new_connector_init
 
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+# Flask modülü kontrolü (Eğer yüklenmemişse hata vermemesi için güvenli katman)
+try:
+    from flask import Flask
+    FLASK_AVAILABLE = True
+except ImportError:
+    FLASK_AVAILABLE = False
+
 # --- 1. WEB SUNUCUSU (7/24 Uptime) ---
-app = Flask('')
+if FLASK_AVAILABLE:
+    app = Flask('')
 
-@app.route('/')
-def home():
-    return "Storm-Guard Safe Rolü ve Güvenlik Sistemleri Aktif!"
+    @app.route('/')
+    def home():
+        return "Storm-Guard Safe Rolü ve Güvenlik Sistemleri Aktif!"
 
-def run():
-    app.run(host='0.0.0.0', port=8080)
+    def run():
+        app.run(host='0.0.0.0', port=8080)
 
-def keep_alive():
-    t = threading.Thread(target=run)
-    t.start()
+    def keep_alive():
+        t = threading.Thread(target=run)
+        t.start()
+else:
+    def keep_alive():
+        print("⚠️ Flask bulunamadı, web sunucusu başlatılamıyor.")
 
 # --- 2. BOT AYARLARI VE KONFİGÜRASYON ---
 TOKEN = os.getenv("DISCORD_TOKEN", "MTU2MzIxMjUxMjYzODI3OTg1Mg.Grojg5.3kCtYduiJuLnMSOTilpEzeUHK3I6Isoao2_yoY")
@@ -296,7 +306,8 @@ async def logsifirla(interaction: discord.Interaction):
 
 # --- 8. ÇALIŞTIRMA ---
 if __name__ == "__main__":
-    keep_alive()
+    if FLASK_AVAILABLE:
+        keep_alive()
     print("-> Discord botu başlatılıyor (bot.run çağırılıyor)...")
     try:
         bot.run(TOKEN)
