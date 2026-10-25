@@ -3,13 +3,15 @@ import threading
 import asyncio
 import re
 import os
+import certifi
 import discord
 from discord import app_commands
 from discord.ext import commands
 from flask import Flask
 
-# --- 0. SSL SERTİFİKA BYPASS (Bulut Ortamı İçin) ---
+# --- 0. SSL SERTİFİKA VE BYPASS AYARLARI (Bulut Ortamı İçin) ---
 ssl._create_default_https_context = ssl._create_unverified_context
+os.environ['SSL_CERT_FILE'] = certifi.where()
 
 # --- 1. WEB SUNUCUSU (7/24 Uptime) ---
 app = Flask('')
