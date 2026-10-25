@@ -8,7 +8,7 @@ from flask import Flask
 import discord
 from discord.ext import commands
 
-# Flask web sunucusu (Diploi/Cloud platformlarının portu açık tutması için gereklidir)
+# Flask web sunucusu (Cloud platformlarının portu açık tutması için gereklidir)
 app = Flask('')
 
 @app.route('/')
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     print("-> Flask web sunucusu arka planda başlatılıyor...")
     keep_alive()
     
-    # Token'ı Diploi Environment (Environment Variables) kısmından güvenli bir şekilde alır
+    # Token'ı Diploi Environment kısmından güvenli bir şekilde alır
     TOKEN = os.getenv("DISCORD_TOKEN")
     
     if not TOKEN:
