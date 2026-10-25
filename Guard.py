@@ -3,26 +3,21 @@ import threading
 import asyncio
 import re
 import os
+import aiohttp
 import discord
 from discord import app_commands
 from discord.ext import commands
 from flask import Flask
 
-# --- 0. KESİN KÖK SSL BYPASS (Sandbox Ortamı İçin) ---
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# --- KESİN AIOHTTP & SSL BYPASS ---
+ssl._create_default_https_context = ssl._create_unverified_context
 
-# Python'un genel SSL context oluşturucusunu güvensiz ve sertifikasız moda zorla
-_old_create_context = ssl.create_default_context
-
-def _new_create_context(*args, **kwargs):
-    context = _old_create_context(*args, **kwargs)
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
-    return context
-
-ssl.create_default_context = _new_create_context
-ssl._create_default_https_context = _new_create_context
+# Aiohttp'nin tüm TCP bağlantılarında SSL doğrulamasını zorla kapat
+_old_connector_init = aiohttp.TCPConnector.__init__
+def _new_connector_init(self, *args, **kwargs):
+    kwargs['ssl'] = False
+    _old_connector_init(self, *args, **kwargs)
+aiohttp.TCPConnector.__init__ = _new_connector_init
 
 # --- 1. WEB SUNUCUSU (7/24 Uptime) ---
 app = Flask('')
