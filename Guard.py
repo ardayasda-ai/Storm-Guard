@@ -1,5 +1,4 @@
 import os
-# --- 0. SİSTEM SERTİFİKA VE SSL BYPASS ---
 os.environ['SSL_CERT_FILE'] = ''
 os.environ['REQUESTS_CA_BUNDLE'] = ''
 
@@ -15,10 +14,12 @@ ssl._create_default_https_context = ssl._create_unverified_context
 import aiohttp
 from aiohttp import TCPConnector
 
+# aiohttp çakışmasını önleyen temiz TCPConnector yaması
 _orig_tcp_init = TCPConnector.__init__
 def _new_tcp_init(self, *args, **kwargs):
     kwargs['ssl'] = False
-    kwargs['verify_ssl'] = False
+    if 'verify_ssl' in kwargs:
+        del kwargs['verify_ssl']
     _orig_tcp_init(self, *args, **kwargs)
 TCPConnector.__init__ = _new_tcp_init
 
