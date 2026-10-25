@@ -9,9 +9,17 @@ from discord import app_commands
 from discord.ext import commands
 from flask import Flask
 
-# --- 0. SSL SERTİFİKA VE BYPASS AYARLARI (Bulut Ortamı İçin) ---
-ssl._create_default_https_context = ssl._create_unverified_context
+# --- 0. KESİN SSL BYPASS (Aiohttp ve Discord İçin) ---
 os.environ['SSL_CERT_FILE'] = certifi.where()
+ssl._create_default_https_context = ssl._create_unverified_context
+
+# Discord.py altındaki aiohttp isteklerinin SSL sertifika hatası vermesini önleyen yama
+from discord.http import HTTPClient
+_old_handle_ratelimit = HTTPClient.request
+
+async def _new_handle_ratelimit(self, route, *args, **kwargs):
+    kwargs['connector'] = aiohttp.TCPConnector(ssl=False)
+    return await _old_handle_ratelimit(self, route, *args, **kwargs)
 
 # --- 1. WEB SUNUCUSU (7/24 Uptime) ---
 app = Flask('')
@@ -288,5 +296,13 @@ async def logsifirla(interaction: discord.Interaction):
 
 # --- 8. ÇALIŞTIRMA ---
 if __name__ == "__main__":
+    import aiohttp
+    # Aiohttp'nin varsayılan HTTPClient istek fonksiyonunu güvenli olmayan soket yöneticisiyle yamala
+    HTTPClient.request = _new_handle_ratelimit
+    
     keep_alive()
-    bot.run(TOKEN)
+    print("-> Discord botu başlatılıyor (bot.run çağırılıyor)...")
+    try:
+        bot.run(TOKEN)
+    except Exception as e:
+        print(f"-> BOT BAŞLATIRKEN HATA OLUŞTU: {e}")
