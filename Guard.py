@@ -94,7 +94,6 @@ async def on_ready():
     print(f'{bot.user.name} Kesintisiz Koruma ve Komut Senkronizasyonu Aktif!')
     try:
         guild_obj = discord.Object(id=GUILD_ID)
-        # Çift komut oluşmaması için sadece sunucuya senkronize ediyoruz:
         bot.tree.clear_commands(guild=None) 
         synced = await bot.tree.sync(guild=guild_obj)
         print(f"🔗 {len(synced)} adet Slash (/) komutu tekil olarak senkronize edildi.")
@@ -408,14 +407,19 @@ async def seskatil(interaction: discord.Interaction, kanal: discord.VoiceChannel
     
     try:
         if interaction.guild.voice_client:
+            if interaction.guild.voice_client.channel.id == kanal.id:
+                await interaction.followup.send(f"✅ Zaten **{kanal.name}** ses kanalındayım.", ephemeral=True)
+                return
             await interaction.guild.voice_client.move_to(kanal)
         else:
-            await kanal.connect()
+            await asyncio.wait_for(kanal.connect(), timeout=10.0)
             
         if interaction.guild.voice_client:
             await interaction.guild.voice_client.guild.change_voice_state(channel=kanal, self_mute=True, self_deaf=True)
             
         await interaction.followup.send(f"✅ Başarıyla **{kanal.name}** ses kanalına katıldım (Susturulmuş ve Sağırlaştırılmış).", ephemeral=True)
+    except asyncio.TimeoutError:
+        await interaction.followup.send("❌ Ses kanalına bağlanırken zaman aşımına uğradı (Timeout).", ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ Ses kanalına bağlanırken hata oluştu: {e}", ephemeral=True)
 
