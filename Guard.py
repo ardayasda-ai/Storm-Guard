@@ -48,15 +48,11 @@ if FLASK_AVAILABLE:
         t = threading.Thread(target=run)
         t.start()
 
-    # Render adresini buraya otomatik algılatıyoruz veya kendi URL'ni yazabilirsin
-    # Botun kendi kendine istek atarak uykudan kaçmasını sağlayan döngü:
     def self_ping():
         import time
-        # Render app adını otomatik alamazsa diye kendi render linkini tırnak içine yazabilirsin:
-        # Örn: url = "https://storm-guard.onrender.com"
         app_name = os.getenv("RENDER_EXTERNAL_URL", "http://127.0.0.1:8080")
         while True:
-            time.sleep(300) # Her 5 dakikada bir kendine istek atar
+            time.sleep(300)
             try:
                 urllib.request.urlopen(app_name)
             except:
@@ -72,7 +68,7 @@ TOKEN = os.getenv("DISCORD_TOKEN", "").strip()
 
 GUILD_ID = 1562558097690460321
 OTOROL_ID = 1562824132796612678
-SAFE_ROLE_ID = 1562922053571580046  # 👉 Safe Rolü ID'n
+SAFE_ROLE_ID = 1562922053571580046
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -98,9 +94,10 @@ async def on_ready():
     print(f'{bot.user.name} Kesintisiz Koruma ve Komut Senkronizasyonu Aktif!')
     try:
         guild_obj = discord.Object(id=GUILD_ID)
-        bot.tree.copy_global_to(guild=guild_obj)
+        # Çift komut oluşmaması için sadece sunucuya senkronize ediyoruz:
+        bot.tree.clear_commands(guild=None) 
         synced = await bot.tree.sync(guild=guild_obj)
-        print(f"🔗 {len(synced)} adet Slash (/) komutu sunucuya özel senkronize edildi.")
+        print(f"🔗 {len(synced)} adet Slash (/) komutu tekil olarak senkronize edildi.")
     except Exception as e:
         print(f"Komut senkronizasyon hatası: {e}")
 
@@ -543,8 +540,6 @@ async def logkurulum(interaction: discord.Interaction):
     
     kurulanlar = 0
     for isim in kanal_isimleri:
-        existing = discord.utils.get(discord.utils.get(guild.categories, name="Server Logs").text_channels, name=isim) if category else None
-        # Basitleştirilmiş kontrol:
         chan_check = discord.utils.get(guild.text_channels, name=isim)
         if not chan_check:
             try:
