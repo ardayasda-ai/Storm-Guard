@@ -3,3 +3,4 @@ discord.py
 aiohttp
 certifi
 urllib3
+PyNaCl

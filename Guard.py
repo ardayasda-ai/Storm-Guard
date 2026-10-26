@@ -6,6 +6,7 @@ import ssl
 import threading
 import asyncio
 import re
+import urllib.request
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -32,13 +33,13 @@ try:
 except ImportError:
     FLASK_AVAILABLE = False
 
-# --- 1. WEB SUNUCUSU (7/24 Uptime) ---
+# --- 1. WEB SUNUCUSU VE OTOMATİK UYANIK TUTMA (SELF-PING) ---
 if FLASK_AVAILABLE:
     app = Flask('')
 
     @app.route('/')
     def home():
-        return "Storm-Guard Kesintisiz Güvenlik Sistemleri Aktif!"
+        return "Guard Kesintisiz Güvenlik Sistemleri Aktif!"
 
     def run():
         app.run(host='0.0.0.0', port=8080)
@@ -46,6 +47,22 @@ if FLASK_AVAILABLE:
     def keep_alive():
         t = threading.Thread(target=run)
         t.start()
+
+    # Render adresini buraya otomatik algılatıyoruz veya kendi URL'ni yazabilirsin
+    # Botun kendi kendine istek atarak uykudan kaçmasını sağlayan döngü:
+    def self_ping():
+        import time
+        # Render app adını otomatik alamazsa diye kendi render linkini tırnak içine yazabilirsin:
+        # Örn: url = "https://storm-guard.onrender.com"
+        app_name = os.getenv("RENDER_EXTERNAL_URL", "http://127.0.0.1:8080")
+        while True:
+            time.sleep(300) # Her 5 dakikada bir kendine istek atar
+            try:
+                urllib.request.urlopen(app_name)
+            except:
+                pass
+
+    threading.Thread(target=self_ping, daemon=True).start()
 else:
     def keep_alive():
         print("⚠️ Flask bulunamadı.")
@@ -526,8 +543,10 @@ async def logkurulum(interaction: discord.Interaction):
     
     kurulanlar = 0
     for isim in kanal_isimleri:
-        existing = discord.utils.get(guild.text_channels, name=isim)
-        if not existing:
+        existing = discord.utils.get(discord.utils.get(guild.categories, name="Server Logs").text_channels, name=isim) if category else None
+        # Basitleştirilmiş kontrol:
+        chan_check = discord.utils.get(guild.text_channels, name=isim)
+        if not chan_check:
             try:
                 await guild.create_text_channel(isim, category=category)
                 kurulanlar += 1
