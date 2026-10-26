@@ -94,9 +94,10 @@ async def on_ready():
     print(f'{bot.user.name} Kesintisiz Koruma ve Komut Senkronizasyonu Aktif!')
     try:
         guild_obj = discord.Object(id=GUILD_ID)
-        bot.tree.clear_commands(guild=None) 
+        # Çift komut ve önbellek hatalarını temizlemek için:
+        bot.tree.clear_commands(guild=guild_obj)
         synced = await bot.tree.sync(guild=guild_obj)
-        print(f"🔗 {len(synced)} adet Slash (/) komutu tekil olarak senkronize edildi.")
+        print(f"🔗 {len(synced)} adet Slash (/) komutu sunucuya başarıyla senkronize edildi.")
     except Exception as e:
         print(f"Komut senkronizasyon hatası: {e}")
 
