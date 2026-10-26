@@ -1,5 +1,5 @@
 flask
-discord.py
+discord.py[voice]
 aiohttp
 certifi
 urllib3
