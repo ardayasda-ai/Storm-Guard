@@ -4,3 +4,4 @@ aiohttp
 certifi
 urllib3
 PyNaCl
+gunicorn
