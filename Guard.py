@@ -33,13 +33,13 @@ try:
 except ImportError:
     FLASK_AVAILABLE = False
 
-# --- 1. WEB SUNUCUSU VE OTOMATİK UYANIK TUTMA (SELF-PING) ---
+# --- 1. WEB SUNUCUSU VE 7/24 UYANIK TUTMA (SELF-PING) ---
 if FLASK_AVAILABLE:
     app = Flask('')
 
     @app.route('/')
     def home():
-        return "Guard Kesintisiz Güvenlik Sistemleri Aktif!"
+        return "Storm-Guard Profesyonel Güvenlik ve Log Sistemi Aktif!"
 
     def run():
         app.run(host='0.0.0.0', port=8080)
@@ -63,7 +63,7 @@ else:
     def keep_alive():
         print("⚠️ Flask bulunamadı.")
 
-# --- 2. BOT AYARLARI VE KONFİGÜRASYON ---
+# --- 2. BOT AYARLARI VE YAPILANDIRMA ---
 TOKEN = os.getenv("DISCORD_TOKEN", "").strip()
 
 GUILD_ID = 1562558097690460321
@@ -77,6 +77,7 @@ intents.guilds = True
 intents.voice_states = True
 intents.moderation = True
 intents.bans = True
+intents.audit_log = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
@@ -91,13 +92,12 @@ REKLAM_REGEX = re.compile(r"(https?://|discord\.gg/|discord\.com/invite/)")
 
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} Kesintisiz Koruma ve Komut Senkronizasyonu Aktif!')
+    print(f'🔥 {bot.user.name} Pro Güvenlik Sistemi Hazır ve Çalışıyor!')
     try:
         guild_obj = discord.Object(id=GUILD_ID)
-        # Çift komut ve önbellek hatalarını temizlemek için:
         bot.tree.clear_commands(guild=guild_obj)
         synced = await bot.tree.sync(guild=guild_obj)
-        print(f"🔗 {len(synced)} adet Slash (/) komutu sunucuya başarıyla senkronize edildi.")
+        print(f"🔗 {len(synced)} adet komut kusursuz şekilde senkronize edildi.")
     except Exception as e:
         print(f"Komut senkronizasyon hatası: {e}")
 
@@ -119,7 +119,7 @@ def has_safe_role(member: discord.Member) -> bool:
         return True
     return False
 
-# --- 3. SES KANAL LOGLARI ---
+# --- 3. SES KANAL LOGLARI (DETAYLI) ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     if member.bot:
@@ -130,18 +130,19 @@ async def on_voice_state_update(member, before, after):
 
     try:
         if before.channel is not None and after.channel is None:
-            embed = discord.Embed(title="🔇 Ses Kanalından Ayrılış", description=f"{member.mention} ses kanalından ayrıldı.", color=discord.Color.orange())
-            embed.add_field(name="Ayrıldığı Kanal", value=before.channel.name, inline=True)
+            embed = discord.Embed(title="🔇 Üye Ses Kanalından Ayrıldı", description=f"{member.mention} ses kanalını terk etti.", color=discord.Color.orange())
+            embed.add_field(name="Ayrıldığı Kanal", value=f"🔊 {before.channel.name}", inline=True)
         elif before.channel is None and after.channel is not None:
-            embed = discord.Embed(title="🔊 Ses Kanalına Giriş", description=f"{member.mention} ses kanalına giriş yaptı.", color=discord.Color.green())
-            embed.add_field(name="Kanal", value=after.channel.name, inline=True)
+            embed = discord.Embed(title="🔊 Üye Ses Kanalına Giriş Yaptı", description=f"{member.mention} bir ses kanalına bağlandı.", color=discord.Color.green())
+            embed.add_field(name="Bağlandığı Kanal", value=f"🔊 {after.channel.name}", inline=True)
         elif before.channel != after.channel and before.channel is not None and after.channel is not None:
             embed = discord.Embed(title="🔄 Ses Kanalı Değişikliği", description=f"{member.mention} ses kanalını değiştirdi.", color=discord.Color.blue())
-            embed.add_field(name="Eski Kanal", value=before.channel.name, inline=True)
-            embed.add_field(name="Yeni Kanal", value=after.channel.name, inline=True)
+            embed.add_field(name="Önceki Kanal", value=f"🔊 {before.channel.name}", inline=True)
+            embed.add_field(name="Yeni Kanal", value=f"🔊 {after.channel.name}", inline=True)
 
         if embed:
-            embed.set_footer(text=f"Kullanıcı ID: {member.id}")
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.set_footer(text=f"Storm-Guard • Kullanıcı ID: {member.id} • Authorized By Zynex", icon_url=guild.icon.url if guild.icon else None)
             await send_log(guild, "voice-logs", embed)
     except Exception as e:
         print(f"Ses log hatası: {e}")
@@ -149,7 +150,7 @@ async def on_voice_state_update(member, before, after):
 # --- 4. SAĞ TIK BAN KORUMASI ---
 @bot.event
 async def on_member_ban(guild, user):
-    await asyncio.sleep(1.2)
+    await asyncio.sleep(1.5)
     try:
         async for entry in guild.audit_logs(limit=3, action=discord.AuditLogAction.ban):
             actor = entry.user
@@ -162,25 +163,25 @@ async def on_member_ban(guild, user):
                 MANUAL_AUTH.remove(member.id)
                 return
             if not has_safe_role(member):
-                sebep_metni = "Safe Rolü Olmadan Sağ Tık Ban Atmak"
-                await guild.unban(user, reason=f"Storm-Guard: Yetkisiz işlem geri alındı.")
+                sebep_metni = "Safe Rolü Olmadan Yetkisiz Sağ Tık Ban Atmak"
+                await guild.unban(user, reason="Storm-Guard: Haksız işlem geri alındı.")
                 await guild.ban(member, reason=f"Storm-Guard: {sebep_metni}")
                 
-                embed = discord.Embed(title="🚨 İzinsiz Sağ Tık Ban Engellendi!", color=discord.Color.red())
-                embed.add_field(name="Yetkisiz Yetkili", value=member.mention, inline=False)
-                embed.add_field(name="Haksız Banlanan", value=user.name, inline=False)
-                embed.add_field(name="Ban Sebebi", value=f"`{sebep_metni}`", inline=False)
-                embed.set_footer(text="İşlem geri alındı ve yetkisiz kişi cezalandırıldı.")
+                embed = discord.Embed(title="🚨 KRİTİK İHLAL: Yetkisiz Ban Engellendi!", color=discord.Color.red())
+                embed.add_field(name="🛡️ Cezalandırılan Yetkili", value=f"{member.mention} (`{member.name}`)", inline=False)
+                embed.add_field(name="👤 Haksız Banlanan Kişi", value=f"{user.name} (`{user.id}`)", inline=False)
+                embed.add_field(name="⚖️ Alınan Önlem", value="Ban işlemi anında geri alındı ve yetkisiz kişi sunucudan yasaklandı.", inline=False)
+                embed.set_footer(text="Storm-Guard Güvenlik Sistemi • Authorized By Zynex")
                 
                 await send_log(guild, "ban-logs", embed)
                 return
     except Exception as e:
         print(f"Ban koruma hatası: {e}")
 
-# --- 5. SAĞ TIK KICK KORUMASI ---
+# --- 5. SAĞ TIK KICK VE ÜYE AYRILMA LOGLARI ---
 @bot.event
 async def on_member_remove(member):
-    await asyncio.sleep(1.2)
+    await asyncio.sleep(1.5)
     try:
         async for entry in member.guild.audit_logs(limit=3, action=discord.AuditLogAction.kick):
             if entry.target.id == member.id:
@@ -192,10 +193,11 @@ async def on_member_remove(member):
                     sebep_metni = "Safe Rolü Olmadan Sağ Tık Üye Atmak (Kick)"
                     await member.guild.ban(manager, reason=f"Storm-Guard: {sebep_metni}")
                     
-                    embed = discord.Embed(title="🚨 İzinsiz Sağ Tık Kick Engellendi!", color=discord.Color.red())
-                    embed.add_field(name="Yetkisiz Yetkili", value=manager.mention, inline=False)
-                    embed.add_field(name="Atılan Üye", value=member.name, inline=False)
-                    embed.add_field(name="Ban Sebebi", value=f"`{sebep_metni}`", inline=False)
+                    embed = discord.Embed(title="🚨 KRİTİK İHLAL: Yetkisiz Kick Engellendi!", color=discord.Color.red())
+                    embed.add_field(name="🛡️ Cezalandırılan Yetkili", value=manager.mention, inline=False)
+                    embed.add_field(name="👤 Sunucudan Atılan Üye", value=member.name, inline=False)
+                    embed.add_field(name="⚖️ Alınan Önlem", value="Yetkisiz üye atan kişi sistem tarafından banlandı.", inline=False)
+                    embed.set_footer(text="Storm-Guard Güvenlik Sistemi • Authorized By Zynex")
                     
                     await send_log(member.guild, "ban-logs", embed)
                     return
@@ -203,17 +205,18 @@ async def on_member_remove(member):
         print(f"Kick koruma hatası: {e}")
 
     if member.guild.id == GUILD_ID:
-        leave_embed = discord.Embed(title="📤 Üye Sunucudan Ayrıldı", description=f"{member.mention} ({member.name}) sunucudan ayrıldı.", color=discord.Color.orange())
+        leave_embed = discord.Embed(title="📤 Üye Sunucudan Ayrıldı", description=f"{member.mention} (`{member.name}`) sunucumuzdan ayrıldı.", color=discord.Color.orange())
         leave_embed.set_thumbnail(url=member.display_avatar.url)
+        leave_embed.set_footer(text=f"Storm-Guard • Üye ID: {member.id} • Authorized By Zynex")
         await send_log(member.guild, "member-logs", leave_embed)
 
-# --- 6. SAĞ TIK ROL VERME / ALMA KORUMASI ---
+# --- 6. ROL KORUMASI ---
 @bot.event
 async def on_member_update(before, after):
     if before.roles == after.roles:
         return
 
-    await asyncio.sleep(1.0)
+    await asyncio.sleep(1.2)
     try:
         async for entry in after.guild.audit_logs(limit=3, action=discord.AuditLogAction.member_role_update):
             actor = entry.user
@@ -227,16 +230,7 @@ async def on_member_update(before, after):
                 return
 
             if not has_safe_role(manager):
-                added_roles = [r for r in after.roles if r not in before.roles]
-                removed_roles = [r for r in before.roles if r not in after.roles]
-                
-                if added_roles:
-                    sebep_metni = "Safe Rolü Olmadan Sağ Tık Rol Vermek"
-                elif removed_roles:
-                    sebep_metni = "Safe Rolü Olmadan Sağ Tık Rol Almak"
-                else:
-                    sebep_metni = "Safe Rolü Olmadan Sağ Tık Rol Değiştirmek"
-
+                sebep_metni = "Safe Rolü Olmadan Yetkisiz Rol İşlemi"
                 try:
                     await after.edit(roles=before.roles, reason="Storm-Guard: Yetkisiz rol değişimi geri alındı.")
                 except:
@@ -247,11 +241,11 @@ async def on_member_update(before, after):
                 except:
                     pass
 
-                embed = discord.Embed(title="🚨 İzinsiz Rol İşlemi Engellendi!", color=discord.Color.red())
-                embed.add_field(name="Yetkisiz Yetkili", value=manager.mention, inline=False)
-                embed.add_field(name="Hedef Üye", value=after.mention, inline=False)
-                embed.add_field(name="Ban Sebebi", value=f"`{sebep_metni}`", inline=False)
-                embed.set_footer(text="Rol değişimi geri alındı ve yetkisiz kişi banlandı.")
+                embed = discord.Embed(title="🚨 KRİTİK İHLAL: Yetkisiz Rol Değişimi Engellendi!", color=discord.Color.red())
+                embed.add_field(name="🛡️ Yetkisiz İşlem Yapan", value=manager.mention, inline=False)
+                embed.add_field(name="👥 Hedef Üye", value=after.mention, inline=False)
+                embed.add_field(name="⚖️ Sonuç", value="Rol değişimleri eski haline getirildi ve yetkisiz kişi banlandı.", inline=False)
+                embed.set_footer(text="Storm-Guard Güvenlik Sistemi • Authorized By Zynex")
                 
                 await send_log(after.guild, "ban-logs", embed)
                 return
@@ -269,10 +263,11 @@ async def on_guild_channel_delete(channel):
             sebep_metni = "Safe Rolü Olmadan İzinsiz Kanal Silmek"
             try:
                 await channel.guild.ban(member, reason=f"Storm-Guard: {sebep_metni}")
-                embed = discord.Embed(title="🚨 İzinsiz Kanal Silme Engellendi", color=discord.Color.red())
-                embed.add_field(name="Yetkisiz Yetkili", value=member.mention, inline=False)
-                embed.add_field(name="Silinen Kanal", value=channel.name, inline=False)
-                embed.add_field(name="Ban Sebebi", value=f"`{sebep_metni}`", inline=False)
+                embed = discord.Embed(title="🚨 ACİL DURUM: Kanal Silindi!", color=discord.Color.dark_red())
+                embed.add_field(name="🛡️ Kanalı Silen Yetkili", value=member.mention, inline=False)
+                embed.add_field(name="📁 Silinen Kanal", value=channel.name, inline=False)
+                embed.add_field(name="⚖️ İşlem", value="Yetkisiz kişi sunucudan kalıcı olarak yasaklandı.", inline=False)
+                embed.set_footer(text="Storm-Guard Güvenlik Sistemi • Authorized By Zynex")
                 
                 await send_log(channel.guild, "guard-log", embed)
             except:
@@ -289,10 +284,11 @@ async def on_guild_role_delete(role):
             sebep_metni = "Safe Rolü Olmadan İzinsiz Rol Silmek"
             try:
                 await role.guild.ban(member, reason=f"Storm-Guard: {sebep_metni}")
-                embed = discord.Embed(title="🚨 İzinsiz Rol Silme Engellendi", color=discord.Color.red())
-                embed.add_field(name="Yetkisiz Yetkili", value=member.mention, inline=False)
-                embed.add_field(name="Silinen Rol", value=role.name, inline=False)
-                embed.add_field(name="Ban Sebebi", value=f"`{sebep_metni}`", inline=False)
+                embed = discord.Embed(title="🚨 ACİL DURUM: Rol Silindi!", color=discord.Color.dark_red())
+                embed.add_field(name="🛡️ Rolü Silen Yetkili", value=member.mention, inline=False)
+                embed.add_field(name="🏷️ Silinen Rol", value=role.name, inline=False)
+                embed.add_field(name="⚖️ İşlem", value="Yetkisiz kişi sunucudan kalıcı olarak yasaklandı.", inline=False)
+                embed.set_footer(text="Storm-Guard Güvenlik Sistemi • Authorized By Zynex")
                 
                 await send_log(role.guild, "guard-log", embed)
             except:
@@ -308,15 +304,16 @@ async def on_member_join(member):
     if member.id in GLOBAL_BAN_LIST:
         try:
             await member.ban(reason="Storm-Guard: Global Ban (Kalıcı Yasaklı)")
-            embed = discord.Embed(title="🌍 Global Ban Tetiklendi!", description=f"Global ban listesindeki {member.mention} ({member.name}) sunucuya girmeye çalıştı ve anında tekrar yasaklandı.", color=discord.Color.dark_red())
-            embed.set_footer(text=f"Kullanıcı ID: {member.id}")
+            embed = discord.Embed(title="🌍 Global Ban Tetiklendi!", description=f"Global ban listesindeki {member.mention} ({member.name}) sunucuya sızmaya çalıştı ve otomatik engellendi.", color=discord.Color.dark_red())
+            embed.set_footer(text=f"Storm-Guard • ID: {member.id} • Authorized By Zynex")
             await send_log(member.guild, "global-ban", embed)
         except:
             pass
         return
 
-    join_embed = discord.Embed(title="📥 Üye Sunucuya Katıldı", description=f"{member.mention} ({member.name}) sunucuya giriş yaptı.", color=discord.Color.green())
+    join_embed = discord.Embed(title="📥 Yeni Üye Katıldı", description=f"Aramıza hoş geldin {member.mention}!", color=discord.Color.green())
     join_embed.set_thumbnail(url=member.display_avatar.url)
+    join_embed.set_footer(text=f"Storm-Guard • Üye ID: {member.id} • Authorized By Zynex")
     await send_log(member.guild, "member-logs", join_embed)
 
     if member.bot:
@@ -334,7 +331,8 @@ async def on_member_join(member):
                 bot_embed = discord.Embed(title="🤖 İzinsiz Bot Tespit Edildi!", color=discord.Color.red())
                 bot_embed.add_field(name="Eklenen Bot", value=member.mention, inline=False)
                 bot_embed.add_field(name="Ekleyen Yetkili", value=member_adder.mention if member_adder else 'Bilinmiyor', inline=False)
-                bot_embed.add_field(name="Ban Sebebi", value=f"`{sebep_metni}`", inline=False)
+                bot_embed.add_field(name="İşlem", value="Bot ve ekleyen yetkili cezalandırıldı.", inline=False)
+                bot_embed.set_footer(text="Storm-Guard Güvenlik Sistemi • Authorized By Zynex")
                 
                 await send_log(member.guild, "anti-bot-log", bot_embed)
 
@@ -379,11 +377,12 @@ async def on_message(message):
         USER_WARNINGS[user_id] = USER_WARNINGS.get(user_id, 0) + 1
         warn_count = USER_WARNINGS[user_id]
 
-        embed = discord.Embed(title="🚫 Küfür / Reklam İhlali", color=discord.Color.red())
+        embed = discord.Embed(title="🚫 Küfür / Reklam Engellendi", color=discord.Color.red())
         embed.add_field(name="Kullanıcı", value=message.author.mention, inline=True)
         embed.add_field(name="Kanal", value=message.channel.mention, inline=True)
-        embed.add_field(name="Uyarı Sayısı", value=f"{warn_count}/3", inline=True)
-        embed.add_field(name="Yasaklı Mesaj", value=message.content[:1000], inline=False)
+        embed.add_field(name="Uyarı", value=f"{warn_count}/3", inline=True)
+        embed.add_field(name="Engellenen Mesaj", value=f"```{message.content[:900]}```", inline=False)
+        embed.set_footer(text="Storm-Guard Moderasyon • Authorized By Zynex")
         await send_log(message.guild, "chat-moderation-logs", embed)
 
         if warn_count >= 3:
@@ -396,14 +395,14 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# --- 10. SLASH KOMUTLARI ---
+# --- 10. PROFESYONEL SLASH KOMUTLARI ---
 
 @bot.tree.command(name="seskatil", description="Seçilen ses kanalına sağırlaştırılmış ve susturulmuş şekilde katılır.")
 @app_commands.describe(kanal="Bağlanılacak ses kanalını seçin")
 async def seskatil(interaction: discord.Interaction, kanal: discord.VoiceChannel):
     await interaction.response.defer(ephemeral=True)
     if not has_safe_role(interaction.user):
-        await interaction.followup.send("❌ Bu komutu kullanmak için Safe rolüne sahip olmalısınız!", ephemeral=True)
+        await interaction.followup.send("❌ Bu komutu kullanmak için yetkiniz yok!", ephemeral=True)
         return
     
     try:
@@ -418,18 +417,28 @@ async def seskatil(interaction: discord.Interaction, kanal: discord.VoiceChannel
         if interaction.guild.voice_client:
             await interaction.guild.voice_client.guild.change_voice_state(channel=kanal, self_mute=True, self_deaf=True)
             
-        await interaction.followup.send(f"✅ Başarıyla **{kanal.name}** ses kanalına katıldım (Susturulmuş ve Sağırlaştırılmış).", ephemeral=True)
-    except asyncio.TimeoutError:
-        await interaction.followup.send("❌ Ses kanalına bağlanırken zaman aşımına uğradı (Timeout).", ephemeral=True)
+        await interaction.followup.send(f"✅ Başarıyla **{kanal.name}** ses kanalına katıldım.", ephemeral=True)
     except Exception as e:
-        await interaction.followup.send(f"❌ Ses kanalına bağlanırken hata oluştu: {e}", ephemeral=True)
+        await interaction.followup.send(f"❌ Ses bağlantı hatası: {e}", ephemeral=True)
+
+@bot.tree.command(name="sesayril", description="Botu bulunduğu ses kanalından çıkarır.")
+async def sesayril(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    if not has_safe_role(interaction.user):
+        await interaction.followup.send("❌ Yetkiniz yok!", ephemeral=True)
+        return
+    if interaction.guild.voice_client:
+        await interaction.guild.voice_client.disconnect()
+        await interaction.followup.send("👋 Ses kanalından başarıyla ayrıldım.", ephemeral=True)
+    else:
+        await interaction.followup.send("⚠️ Zaten bir ses kanalında değilim.", ephemeral=True)
 
 @bot.tree.command(name="globalban", description="Kullanıcıyı global banlar (Yan hesaplardan bile giremez).")
 @app_commands.describe(user_id="Banlanacak kullanıcının ID'si", sebep="Global ban sebebi")
 async def globalban(interaction: discord.Interaction, user_id: str, sebep: str = "Belirtilmedi"):
     await interaction.response.defer(ephemeral=True)
     if not has_safe_role(interaction.user):
-        await interaction.followup.send("❌ Bu komutu kullanmak için Safe rolüne sahip olmalısınız!", ephemeral=True)
+        await interaction.followup.send("❌ Bu komut için Safe rolü gerekiyor!", ephemeral=True)
         return
     try:
         u_id = int(user_id)
@@ -439,23 +448,24 @@ async def globalban(interaction: discord.Interaction, user_id: str, sebep: str =
         MANUAL_AUTH.add(interaction.user.id)
         await interaction.guild.ban(user_obj, reason=f"Global Ban: {sebep}")
         
-        await interaction.followup.send(f"🌍 `{u_id}` ({user_obj.name}) başarıyla global banlandı!", ephemeral=True)
+        await interaction.followup.send(f"🌍 `{u_id}` ({user_obj.name}) kalıcı olarak global banlandı!", ephemeral=True)
         
-        embed = discord.Embed(title="🌍 Yeni Global Ban Atıldı!", color=discord.Color.dark_red())
-        embed.add_field(name="Yetkili", value=interaction.user.mention, inline=False)
-        embed.add_field(name="Yasaklanan Kullanıcı", value=f"{user_obj.name} (`{u_id}`)", inline=False)
+        embed = discord.Embed(title="🌍 Yeni Global Ban Kaydı", color=discord.Color.dark_red())
+        embed.add_field(name="İşlemi Yapan", value=interaction.user.mention, inline=False)
+        embed.add_field(name="Yasaklanan", value=f"{user_obj.name} (`{u_id}`)", inline=False)
         embed.add_field(name="Sebep", value=f"`{sebep}`", inline=False)
+        embed.set_footer(text="Storm-Guard Global Security • Authorized By Zynex")
         await send_log(interaction.guild, "global-ban", embed)
         
     except Exception as e:
-        await interaction.followup.send(f"❌ Hata oluştu: {e}", ephemeral=True)
+        await interaction.followup.send(f"❌ İşlem başarısız: {e}", ephemeral=True)
 
 @bot.tree.command(name="unglobalban", description="Kullanıcının global banını kaldırır.")
-@app_commands.describe(user_id="Global banı kaldırılacak kullanıcının ID'si")
+@app_commands.describe(user_id="Global banı kaldırılacak ID")
 async def unglobalban(interaction: discord.Interaction, user_id: str):
     await interaction.response.defer(ephemeral=True)
     if not has_safe_role(interaction.user):
-        await interaction.followup.send("❌ Safe rolünüz yok!", ephemeral=True)
+        await interaction.followup.send("❌ Yetkiniz yok!", ephemeral=True)
         return
     try:
         u_id = int(user_id)
@@ -468,33 +478,12 @@ async def unglobalban(interaction: discord.Interaction, user_id: str):
             embed = discord.Embed(title="🔓 Global Ban Kaldırıldı", color=discord.Color.green())
             embed.add_field(name="Yetkili", value=interaction.user.mention, inline=False)
             embed.add_field(name="Kullanıcı", value=f"{user_obj.name} (`{u_id}`)", inline=False)
+            embed.set_footer(text="Storm-Guard • Authorized By Zynex")
             await send_log(interaction.guild, "global-ban", embed)
         else:
-            await interaction.followup.send("❌ Bu kullanıcı global ban listesinde bulunmuyor.", ephemeral=True)
+            await interaction.followup.send("❌ Bu ID global ban listesinde bulunamadı.", ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ Hata: {e}", ephemeral=True)
-
-@bot.tree.command(name="unban", description="Normal banı kaldırır.")
-@app_commands.describe(user_id="Banı açılacak kullanıcının ID'si")
-async def unban(interaction: discord.Interaction, user_id: str):
-    await interaction.response.defer(ephemeral=True)
-    if not has_safe_role(interaction.user):
-        await interaction.followup.send("❌ Safe rolünüz yok!", ephemeral=True)
-        return
-    try:
-        u_id = int(user_id)
-        user_obj = await bot.fetch_user(u_id)
-        await interaction.guild.unban(user_obj, reason=f"Yetkili: {interaction.user.name} tarafından açıldı.")
-        
-        await interaction.followup.send(f"✅ `{u_id}` kullanıcısının banı kaldırıldı.", ephemeral=True)
-        
-        embed = discord.Embed(title="🔓 Üye Banı Kaldırıldı", color=discord.Color.green())
-        embed.add_field(name="Yetkili", value=interaction.user.mention, inline=False)
-        embed.add_field(name="Banı Açılan", value=f"{user_obj.name} (`{u_id}`)", inline=False)
-        await send_log(interaction.guild, "ban-logs", embed)
-        
-    except Exception as e:
-        await interaction.followup.send(f"❌ Ban kaldırılırken hata oluştu: {e}", ephemeral=True)
 
 @bot.tree.command(name="ban", description="Safe rolüne sahip yetkililerin güvenli ban atması.")
 @app_commands.describe(uye="Banlanacak üye", sebep="Ban sebebi")
@@ -511,27 +500,50 @@ async def ban(interaction: discord.Interaction, uye: discord.Member, sebep: str 
         
         embed = discord.Embed(title="🔨 Güvenli Ban İşlemi", color=discord.Color.red())
         embed.add_field(name="Yetkili", value=interaction.user.mention, inline=False)
-        embed.add_field(name="Banlanan Üye", value=f"{uye.name} (`{uye.id}`)", inline=False)
+        embed.add_field(name="Banlanan", value=f"{uye.name} (`{uye.id}`)", inline=False)
         embed.add_field(name="Sebep", value=f"`{sebep}`", inline=False)
+        embed.set_footer(text="Storm-Guard Moderasyon • Authorized By Zynex")
         await send_log(interaction.guild, "ban-logs", embed)
     except Exception as e:
         await interaction.followup.send(f"❌ Ban atılamadı: {e}", ephemeral=True)
+
+@bot.tree.command(name="unban", description="Normal banı kaldırır.")
+@app_commands.describe(user_id="Banı açılacak ID")
+async def unban(interaction: discord.Interaction, user_id: str):
+    await interaction.response.defer(ephemeral=True)
+    if not has_safe_role(interaction.user):
+        await interaction.followup.send("❌ Yetkiniz yok!", ephemeral=True)
+        return
+    try:
+        u_id = int(user_id)
+        user_obj = await bot.fetch_user(u_id)
+        await interaction.guild.unban(user_obj, reason=f"Yetkili: {interaction.user.name}")
+        
+        await interaction.followup.send(f"✅ `{u_id}` kullanıcısının banı kaldırıldı.", ephemeral=True)
+        
+        embed = discord.Embed(title="🔓 Ban Kaldırıldı", color=discord.Color.green())
+        embed.add_field(name="Yetkili", value=interaction.user.mention, inline=False)
+        embed.add_field(name="Banı Açılan", value=f"{user_obj.name} (`{u_id}`)", inline=False)
+        embed.set_footer(text="Storm-Guard • Authorized By Zynex")
+        await send_log(interaction.guild, "ban-logs", embed)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Hata: {e}", ephemeral=True)
 
 @bot.tree.command(name="botizin", description="Sunucuya eklenecek botun ID'sine izin verir.")
 @app_commands.describe(bot_id="İzin verilecek botun ID'si")
 async def botizin(interaction: discord.Interaction, bot_id: str):
     await interaction.response.defer(ephemeral=True)
     if not has_safe_role(interaction.user):
-        await interaction.followup.send("❌ Safe rolünüz yok!", ephemeral=True)
+        await interaction.followup.send("❌ Yetkiniz yok!", ephemeral=True)
         return
     try:
         b_id = int(bot_id)
         ALLOWED_BOTS.add(b_id)
-        await interaction.followup.send(f"✅ `{b_id}` ID'li bot için giriş izni verildi.", ephemeral=True)
+        await interaction.followup.send(f"✅ `{b_id}` ID'li bot için giriş izni eklendi.", ephemeral=True)
     except:
-        await interaction.followup.send("❌ Geçerli bir Bot ID giriniz!", ephemeral=True)
+        await interaction.followup.send("❌ Geçerli bir ID girin!", ephemeral=True)
 
-@bot.tree.command(name="logkurulum", description="Tüm güvenlik ve log kanallarını otomatik kurar (Yönetici gerekir).")
+@bot.tree.command(name="logkurulum", description="Tüm güvenlik ve log kanallarını otomatik kurar.")
 @app_commands.checks.has_permissions(administrator=True)
 async def logkurulum(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True, ephemeral=True)
@@ -553,9 +565,9 @@ async def logkurulum(interaction: discord.Interaction):
             except:
                 pass
                 
-    await interaction.followup.send(f"✅ Log sistemi başarıyla kuruldu! ({kurulanlar} yeni kanal oluşturuldu.)", ephemeral=True)
+    await interaction.followup.send(f"✅ Log sistemi kusursuz kuruldu! ({kurulanlar} yeni kanal açıldı.)", ephemeral=True)
 
-@bot.tree.command(name="logsifirla", description="Server Logs kategorisini ve içindeki tüm kanalları siler (Yönetici gerekir).")
+@bot.tree.command(name="logsifirla", description="Server Logs kategorisini ve kanalları temizler.")
 @app_commands.checks.has_permissions(administrator=True)
 async def logsifirla(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True, ephemeral=True)
@@ -575,16 +587,16 @@ async def logsifirla(interaction: discord.Interaction):
             except: 
                 pass
                 
-    await interaction.followup.send(f"🔄 Log sistemi sıfırlandı. Toplam {silinen_kanal} log kanalı silindi.", ephemeral=True)
+    await interaction.followup.send(f"🔄 Log sistemi sıfırlandı. Toplam {silinen_kanal} kanal silindi.", ephemeral=True)
 
-# --- 11. ÇALIŞTIRMA ---
+# --- 11. BAŞLATMA ---
 if __name__ == "__main__":
     if not TOKEN:
         print("❌ KRİTİK HATA: DISCORD_TOKEN bulunamadı!")
     else:
         if FLASK_AVAILABLE:
             keep_alive()
-        print("-> Discord botu başlatılıyor...")
+        print("-> Storm-Guard başlatılıyor...")
         try:
             bot.run(TOKEN)
         except Exception as e:
