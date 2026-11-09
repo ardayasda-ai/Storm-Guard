@@ -33,7 +33,7 @@ try:
 except ImportError:
     FLASK_AVAILABLE = False
 
-# --- 1. WEB SUNUCUSU VE 7/24 UYANIK TUTMA (SELF-PING) ---
+# --- 1. WEB SUNUCUSU ---
 if FLASK_AVAILABLE:
     app = Flask('')
 
@@ -77,7 +77,7 @@ intents.guilds = True
 intents.voice_states = True
 intents.moderation = True
 intents.bans = True
-intents.audit_log = True
+# (Hata veren audit_log satırı buradan tamamen temizlendi)
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
@@ -119,7 +119,7 @@ def has_safe_role(member: discord.Member) -> bool:
         return True
     return False
 
-# --- 3. SES KANAL LOGLARI (DETAYLI) ---
+# --- 3. SES KANAL LOGLARI ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     if member.bot:
