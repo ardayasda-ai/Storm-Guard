@@ -33,7 +33,7 @@ try:
 except ImportError:
     FLASK_AVAILABLE = False
 
-# --- 1. WEB SUNUCUSU (PORT ÇAKIŞMASI KORUMALI) ---
+# --- 1. WEB SUNUCUSU ---
 if FLASK_AVAILABLE:
     app = Flask('')
 
@@ -45,13 +45,9 @@ if FLASK_AVAILABLE:
         try:
             app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
         except Exception as e:
-            print(f"Web sunucu port hatası (önemsiz): {e}")
+            print(f"Web sunucu hatası: {e}")
 
-    def keep_alive():
-        t = threading.Thread(target=run, daemon=True)
-        t.start()
-
-    keep_alive()
+    threading.Thread(target=lambda: run(), daemon=True).start()
 else:
     def keep_alive():
         pass
@@ -87,6 +83,9 @@ async def on_ready():
     print(f'🔥 {bot.user.name} Pro Ultra Guard Sistemi Hazır ve Çalışıyor!')
     try:
         guild_obj = discord.Object(id=GUILD_ID)
+        bot.tree.clear_commands(guild=guild_obj)
+        
+        # Komutları bizzat ekliyoruz
         synced = await bot.tree.sync(guild=guild_obj)
         print(f"🔗 {len(synced)} adet komut kusursuz şekilde senkronize edildi.")
     except Exception as e:
@@ -110,7 +109,7 @@ def has_safe_role(member: discord.Member) -> bool:
         return True
     return False
 
-# --- 3. SES KANAL LOGLARI (DETAYLI) ---
+# --- 3. SES KANAL LOGLARI ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     if member.bot:
