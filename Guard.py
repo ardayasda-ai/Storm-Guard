@@ -33,7 +33,7 @@ try:
 except ImportError:
     FLASK_AVAILABLE = False
 
-# --- 1. WEB SUNUCUSU VE 7/24 UYANIK TUTMA ---
+# --- 1. WEB SUNUCUSU (PORT ÇAKIŞMASI KORUMALI) ---
 if FLASK_AVAILABLE:
     app = Flask('')
 
@@ -42,13 +42,16 @@ if FLASK_AVAILABLE:
         return "Storm-Guard Pro Ultra Güvenlik ve Log Sistemi Aktif!"
 
     def run():
-        app.run(host='0.0.0.0', port=8080)
+        try:
+            app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
+        except Exception as e:
+            print(f"Web sunucu port hatası (önemsiz): {e}")
 
     def keep_alive():
-        t = threading.Thread(target=run)
+        t = threading.Thread(target=run, daemon=True)
         t.start()
 
-    threading.Thread(target=keep_alive, daemon=True).start()
+    keep_alive()
 else:
     def keep_alive():
         pass
@@ -84,7 +87,6 @@ async def on_ready():
     print(f'🔥 {bot.user.name} Pro Ultra Guard Sistemi Hazır ve Çalışıyor!')
     try:
         guild_obj = discord.Object(id=GUILD_ID)
-        bot.tree.clear_commands(guild=guild_obj)
         synced = await bot.tree.sync(guild=guild_obj)
         print(f"🔗 {len(synced)} adet komut kusursuz şekilde senkronize edildi.")
     except Exception as e:
@@ -581,9 +583,7 @@ if __name__ == "__main__":
     if not TOKEN:
         print("❌ KRİTİK HATA: DISCORD_TOKEN bulunamadı!")
     else:
-        if FLASK_AVAILABLE:
-            keep_alive()
-        print("-> Storm-Guard Pro Ultra başlatılıyor...")
+        print("-> Storm-Guard başlatılıyor...")
         try:
             bot.run(TOKEN)
         except Exception as e:
