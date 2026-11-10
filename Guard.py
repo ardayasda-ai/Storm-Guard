@@ -81,11 +81,10 @@ REKLAM_REGEX = re.compile(r"(https?://|discord\.gg/|discord\.com/invite/)")
 @bot.event
 async def on_ready():
     print(f'🔥 {bot.user.name} Pro Ultra Guard Sistemi Hazır ve Çalışıyor!')
-    await asyncio.sleep(2)  # Discord önbelleklenmesi için kısa bekleme
     try:
-        guild_obj = discord.Object(id=GUILD_ID)
-        synced = await bot.tree.sync(guild=guild_obj)
-        print(f"🔗 {len(synced)} adet komut kusursuz şekilde senkronize edildi.")
+        # Komutları global olarak senkronize ediyoruz (anında görünür)
+        synced = await bot.tree.sync()
+        print(f"🔗 {len(synced)} adet komut global olarak kusursuz şekilde senkronize edildi.")
     except Exception as e:
         print(f"Komut senkronizasyon hatası: {e}")
 
@@ -580,6 +579,8 @@ if __name__ == "__main__":
     if not TOKEN:
         print("❌ KRİTİK HATA: DISCORD_TOKEN bulunamadı!")
     else:
+        if FLASK_AVAILABLE:
+            keep_alive()
         print("-> Storm-Guard başlatılıyor...")
         try:
             bot.run(TOKEN)
