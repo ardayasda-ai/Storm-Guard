@@ -33,7 +33,7 @@ try:
 except ImportError:
     FLASK_AVAILABLE = False
 
-# --- 1. WEB SUNUCUSU ---
+# --- 1. WEB SUNUCUSU VE KEEP_ALIVE TANIMI ---
 if FLASK_AVAILABLE:
     app = Flask('')
 
@@ -47,10 +47,11 @@ if FLASK_AVAILABLE:
         except Exception as e:
             print(f"Web sunucu hatası: {e}")
 
-    threading.Thread(target=lambda: run(), daemon=True).start()
+    def keep_alive():
+        threading.Thread(target=run, daemon=True).start()
 else:
     def keep_alive():
-        pass
+        print("⚠️ Flask bulunamadı, keep_alive pas geçildi.")
 
 # --- 2. BOT AYARLARI VE YAPILANDIRMA ---
 TOKEN = os.getenv("DISCORD_TOKEN", "").strip()
@@ -82,7 +83,6 @@ REKLAM_REGEX = re.compile(r"(https?://|discord\.gg/|discord\.com/invite/)")
 async def on_ready():
     print(f'🔥 {bot.user.name} Pro Ultra Guard Sistemi Hazır ve Çalışıyor!')
     try:
-        # Komutları global olarak senkronize ediyoruz (anında görünür)
         synced = await bot.tree.sync()
         print(f"🔗 {len(synced)} adet komut global olarak kusursuz şekilde senkronize edildi.")
     except Exception as e:
@@ -579,8 +579,7 @@ if __name__ == "__main__":
     if not TOKEN:
         print("❌ KRİTİK HATA: DISCORD_TOKEN bulunamadı!")
     else:
-        if FLASK_AVAILABLE:
-            keep_alive()
+        keep_alive()
         print("-> Storm-Guard başlatılıyor...")
         try:
             bot.run(TOKEN)
