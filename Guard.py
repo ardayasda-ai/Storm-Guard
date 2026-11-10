@@ -81,11 +81,9 @@ REKLAM_REGEX = re.compile(r"(https?://|discord\.gg/|discord\.com/invite/)")
 @bot.event
 async def on_ready():
     print(f'🔥 {bot.user.name} Pro Ultra Guard Sistemi Hazır ve Çalışıyor!')
+    await asyncio.sleep(2)  # Discord önbelleklenmesi için kısa bekleme
     try:
         guild_obj = discord.Object(id=GUILD_ID)
-        bot.tree.clear_commands(guild=guild_obj)
-        
-        # Komutları bizzat ekliyoruz
         synced = await bot.tree.sync(guild=guild_obj)
         print(f"🔗 {len(synced)} adet komut kusursuz şekilde senkronize edildi.")
     except Exception as e:
